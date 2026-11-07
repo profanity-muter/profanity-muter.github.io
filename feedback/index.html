@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Profanity Muter feedback</title>
+<link rel="icon" href="icon.png">
+<style>
+  :root { --navy:#1d2f54; --gold:#e8c46c; --paper:#faf8f2; --ink:#1d2f54; --muted:#55627d; --line:#d9d4c4; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:18px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:560px; margin:0 auto; padding:32px 16px 48px; }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:600; color:var(--muted); font-size:16px; }
+  .brand img { width:36px; height:36px; border-radius:8px; }
+  h1 { font-size:30px; line-height:1.2; margin:24px 0 8px; }
+  p.lead { margin:0 0 20px; color:var(--muted); }
+  .reasons { display:grid; gap:12px; margin:0; padding:0; border:0; }
+  .reasons button { font:inherit; font-weight:600; text-align:left; padding:16px 18px; min-height:56px; width:100%;
+    background:#fff; color:var(--navy); border:2px solid var(--navy); border-radius:12px; cursor:pointer; }
+  .reasons button:hover { background:#f3efe2; }
+  .reasons button[aria-pressed="true"] { background:var(--navy); color:#fff; }
+  button:focus-visible, textarea:focus-visible, a:focus-visible { outline:3px solid var(--gold); outline-offset:2px; }
+  #thanks { margin-top:24px; }
+  #thanks h2 { font-size:22px; margin:0 0 4px; }
+  label { display:block; font-weight:600; margin:16px 0 6px; }
+  textarea { width:100%; min-height:120px; font:inherit; padding:12px; border:2px solid var(--line); border-radius:12px; background:#fff; color:var(--ink); resize:vertical; }
+  .row { display:flex; align-items:center; gap:12px; margin-top:12px; flex-wrap:wrap; }
+  .send { font:inherit; font-weight:700; padding:12px 24px; min-height:48px; background:var(--gold); color:var(--navy); border:2px solid var(--navy); border-radius:12px; cursor:pointer; }
+  .send[disabled] { opacity:.6; cursor:default; }
+  .count, #status { color:var(--muted); font-size:15px; }
+  .privacy { margin-top:32px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:15px; }
+  a { color:var(--navy); }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><img src="icon.png" alt="" width="36" height="36"> Profanity Muter</div>
+  <h1 id="heading">Tell us how it went</h1>
+  <p class="lead" id="lead">One tap is plenty. Everything here is optional.</p>
+
+  <fieldset class="reasons" id="reasons">
+    <legend class="sr" style="position:absolute;left:-9999px">Reason</legend>
+    <button type="button">It missed words it should have muted</button>
+    <button type="button">It slowed down my computer</button>
+    <button type="button">It muted things it shouldn't have</button>
+    <button type="button">I only needed it for a while</button>
+    <button type="button">Something else</button>
+  </fieldset>
+
+  <section id="thanks" hidden aria-live="polite">
+    <h2>Thank you, that helps.</h2>
+    <p id="more">Want to add a few words? Optional, and no name or email needed.</p>
+    <form id="form" hidden>
+      <label for="comment">Your comment</label>
+      <textarea id="comment" maxlength="1000" autocomplete="off"></textarea>
+      <div class="row">
+        <button class="send" type="submit" id="send">Send</button>
+        <span class="count" id="count">0 / 1000</span>
+        <span id="status" role="status"></span>
+      </div>
+    </form>
+  </section>
+
+  <p class="privacy">This page sets no cookies. Taps are counted anonymously. Comments you send go to our support inbox and are deleted after 12 months. <a href="../privacy/#feedback-pages">Privacy policy</a></p>
+</main>
+
+<script defer src="https://umami.urbanalgorithm.com/script.js" data-website-id="ff4f9361-ca34-41f6-b858-e824e565f2f2"></script>
+<script>
+(function () {
+  // Paste the Formspree form URL here (https://formspree.io/f/<id>). While it
+  // still holds the placeholder, the comment box stays hidden and the page
+  // works with taps only.
+  var FORMSPREE_ENDPOINT = "https://formspree.io/f/REPLACE_WITH_FORMSPREE_ID";
+
+  var q = new URLSearchParams(location.search);
+  var from = q.get("from") === "uninstall" || q.get("from") === "paused" ? q.get("from") : "direct";
+  var v = /^[0-9.]{1,12}$/.test(q.get("v") || "") ? q.get("v") : "";
+  var reason = "";
+
+  if (from === "uninstall") {
+    document.getElementById("heading").textContent = "Sorry to see you go";
+    document.getElementById("lead").textContent = "What was the main reason? One tap is plenty.";
+  } else if (from === "paused") {
+    document.getElementById("heading").textContent = "Paused Profanity Muter?";
+    document.getElementById("lead").textContent = "What was the main reason? One tap is plenty.";
+  }
+
+  var canComment = FORMSPREE_ENDPOINT.indexOf("REPLACE_WITH") === -1;
+  var buttons = document.querySelectorAll("#reasons button");
+  buttons.forEach(function (b) {
+    b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", function () {
+      var first = !reason;
+      reason = b.textContent;
+      buttons.forEach(function (o) { o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
+      if (window.umami && typeof window.umami.track === "function") {
+        window.umami.track("feedback_reason", { reason: reason, from: from, v: v });
+      }
+      document.getElementById("thanks").hidden = false;
+      if (canComment) document.getElementById("form").hidden = false;
+      else document.getElementById("more").hidden = true;
+      if (first) document.getElementById("thanks").scrollIntoView({ block: "nearest" });
+    });
+  });
+
+  var ta = document.getElementById("comment");
+  ta.addEventListener("input", function () {
+    document.getElementById("count").textContent = ta.value.length + " / 1000";
+  });
+  document.getElementById("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var msg = ta.value.trim().slice(0, 1000);
+    var status = document.getElementById("status");
+    if (!msg) { status.textContent = "Type a comment first, or just close this tab."; return; }
+    var send = document.getElementById("send");
+    send.disabled = true;
+    status.textContent = "Sending...";
+    fetch(FORMSPREE_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({ reason: reason, from: from, v: v, message: msg })
+    }).then(function (r) {
+      if (!r.ok) throw new Error("status " + r.status);
+      status.textContent = "Sent. Thank you.";
+      ta.disabled = true;
+    }).catch(function () {
+      status.textContent = "Could not send. Please try again.";
+      send.disabled = false;
+    });
+  });
+})();
+</script>
+</body>
+</html>
