@@ -29,6 +29,8 @@
   .send { font:inherit; font-weight:700; padding:12px 24px; min-height:48px; background:var(--gold); color:var(--navy); border:2px solid var(--navy); border-radius:12px; cursor:pointer; }
   .send[disabled] { opacity:.6; cursor:default; }
   .count, #status { color:var(--muted); font-size:15px; }
+  .count { margin:6px 0 0; text-align:right; }
+  .sent { font-weight:700; color:var(--navy); margin-top:12px; }
   .privacy { margin-top:32px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:15px; }
   a { color:var(--navy); }
   [hidden] { display:none !important; }
@@ -54,13 +56,14 @@
     <p id="more">Want to add a few words? Optional, and no name or email needed.</p>
     <form id="form" hidden>
       <label for="comment">Your comment</label>
-      <textarea id="comment" maxlength="1000" autocomplete="off"></textarea>
+      <textarea id="comment" maxlength="1000" autocomplete="off" aria-describedby="count"></textarea>
+      <p class="count" id="count" hidden></p>
       <div class="row">
         <button class="send" type="submit" id="send">Send</button>
-        <span class="count" id="count">0 / 1000</span>
         <span id="status" role="status"></span>
       </div>
     </form>
+    <p id="sent" class="sent" hidden tabindex="-1">Comment sent. We read every one.</p>
   </section>
 
   <p class="privacy">This page sets no cookies. Taps are counted anonymously. Comments you send go to our support inbox and are deleted after 12 months. <a href="../privacy/#feedback-pages">Privacy policy</a></p>
@@ -106,8 +109,12 @@
   });
 
   var ta = document.getElementById("comment");
+  var count = document.getElementById("count");
   ta.addEventListener("input", function () {
-    document.getElementById("count").textContent = ta.value.length + " / 1000";
+    // Only mention the limit when it starts to matter.
+    var left = 1000 - ta.value.length;
+    count.hidden = left > 150;
+    count.textContent = left + (left === 1 ? " character left" : " characters left");
   });
   document.getElementById("form").addEventListener("submit", function (e) {
     e.preventDefault();
@@ -123,8 +130,11 @@
       body: JSON.stringify({ reason: reason, from: from, v: v, message: msg })
     }).then(function (r) {
       if (!r.ok) throw new Error("status " + r.status);
-      status.textContent = "Sent. Thank you.";
-      ta.disabled = true;
+      document.getElementById("form").hidden = true;
+      document.getElementById("more").hidden = true;
+      var sent = document.getElementById("sent");
+      sent.hidden = false;
+      sent.focus();
     }).catch(function () {
       status.textContent = "Could not send. Please try again.";
       send.disabled = false;
