@@ -20,11 +20,17 @@
     background:#fff; color:var(--navy); border:2px solid var(--navy); border-radius:12px; cursor:pointer; }
   .reasons button:hover { background:#f3efe2; }
   .reasons button[aria-pressed="true"] { background:var(--navy); color:#fff; }
-  button:focus-visible, textarea:focus-visible, a:focus-visible { outline:3px solid var(--gold); outline-offset:2px; }
+  button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visible { outline:3px solid var(--gold); outline-offset:2px; }
   #thanks { margin-top:24px; }
   #thanks h2 { font-size:22px; margin:0 0 4px; }
   label { display:block; font-weight:600; margin:16px 0 6px; }
   textarea { width:100%; min-height:120px; font:inherit; padding:12px; border:2px solid var(--line); border-radius:12px; background:#fff; color:var(--ink); resize:vertical; }
+  input[type="url"], input[type="email"] { width:100%; font:inherit; padding:12px; min-height:48px; border:2px solid var(--line); border-radius:12px; background:#fff; color:var(--ink); }
+  .hint { margin:4px 0 0; color:var(--muted); font-size:15px; }
+  #causes { margin-top:16px; padding:14px 16px; background:#fff; border:1px solid var(--line); border-radius:12px; }
+  #causes h3 { font-size:17px; margin:0 0 6px; }
+  #causes ul { margin:0; padding-left:20px; font-size:16px; }
+  #causes li { margin:4px 0; }
   .row { display:flex; align-items:center; gap:12px; margin-top:12px; flex-wrap:wrap; }
   .send { font:inherit; font-weight:700; padding:12px 24px; min-height:48px; background:var(--gold); color:var(--navy); border:2px solid var(--navy); border-radius:12px; cursor:pointer; }
   .send[disabled] { opacity:.6; cursor:default; }
@@ -53,20 +59,34 @@
 
   <section id="thanks" hidden aria-live="polite">
     <h2>Thank you, that helps.</h2>
-    <p id="more">Want to add a few words? Optional, and no name or email needed.</p>
-    <form id="form" hidden>
+    <div id="causes" hidden>
+      <h3>Common causes of missed words</h3>
+      <ul>
+        <li>Shorts, livestreams and premieres are not filtered.</li>
+        <li>Only words on your active list are muted. You can check the list and add your own in the extension's popup.</li>
+        <li>Analysis trails the video, so the first seconds and the moments right after you skip may not be checked yet.</li>
+        <li>Speech recognition can mishear a word, most often over music.</li>
+      </ul>
+    </div>
+    <p id="more">Want to tell us more? Every field is optional.</p>
+    <form id="form" hidden novalidate>
       <label for="comment">Your comment</label>
       <textarea id="comment" maxlength="1000" autocomplete="off" aria-describedby="count"></textarea>
       <p class="count" id="count" hidden></p>
+      <label for="video">Which video? <span style="font-weight:400">(link)</span></label>
+      <input type="url" id="video" maxlength="300" autocomplete="off" placeholder="https://www.youtube.com/watch?v=...">
+      <label for="email">Your email, if you'd like a reply</label>
+      <input type="email" id="email" maxlength="200" autocomplete="email" aria-describedby="email-hint">
+      <p class="hint" id="email-hint">Used only to answer you.</p>
       <div class="row">
         <button class="send" type="submit" id="send">Send</button>
         <span id="status" role="status"></span>
       </div>
     </form>
-    <p id="sent" class="sent" hidden tabindex="-1">Comment sent. We read every one.</p>
+    <p id="sent" class="sent" hidden tabindex="-1">Sent. We read every one.</p>
   </section>
 
-  <p class="privacy">This page sets no cookies. Taps are counted anonymously. Comments you send go to our support inbox and are deleted after 12 months. <a href="../privacy/#feedback-pages">Privacy policy</a></p>
+  <p class="privacy">This page sets no cookies. Taps are counted anonymously. Anything you send, including your email address if you add one, goes to our support inbox and is deleted after 12 months. <a href="../privacy/#feedback-pages">Privacy policy</a></p>
 </main>
 
 <script defer src="https://umami.urbanalgorithm.com/script.js" data-website-id="ff4f9361-ca34-41f6-b858-e824e565f2f2"></script>
@@ -102,6 +122,7 @@
         window.umami.track("feedback_reason", { reason: reason, from: from, v: v });
       }
       document.getElementById("thanks").hidden = false;
+      document.getElementById("causes").hidden = reason.indexOf("missed words") === -1;
       if (canComment) document.getElementById("form").hidden = false;
       else document.getElementById("more").hidden = true;
       if (first) document.getElementById("thanks").scrollIntoView({ block: "nearest" });
@@ -119,20 +140,28 @@
   document.getElementById("form").addEventListener("submit", function (e) {
     e.preventDefault();
     var msg = ta.value.trim().slice(0, 1000);
+    var video = document.getElementById("video").value.trim().slice(0, 300);
+    var emailEl = document.getElementById("email");
+    var email = emailEl.value.trim();
     var status = document.getElementById("status");
-    if (!msg) { status.textContent = "Type a comment first, or just close this tab."; return; }
+    if (!msg && !video) { status.textContent = "Type a comment or paste a video link first, or just close this tab."; return; }
+    if (email && !emailEl.checkValidity()) { status.textContent = "That email address looks incomplete."; emailEl.focus(); return; }
+    var payload = { reason: reason, from: from, v: v, message: msg };
+    if (video) payload.video = video;
+    if (email) payload.email = email;
     var send = document.getElementById("send");
     send.disabled = true;
     status.textContent = "Sending...";
     fetch(FORMSPREE_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({ reason: reason, from: from, v: v, message: msg })
+      body: JSON.stringify(payload)
     }).then(function (r) {
       if (!r.ok) throw new Error("status " + r.status);
       document.getElementById("form").hidden = true;
       document.getElementById("more").hidden = true;
       var sent = document.getElementById("sent");
+      if (email) sent.textContent = "Sent. We'll reply to " + email + ".";
       sent.hidden = false;
       sent.focus();
     }).catch(function () {
